@@ -1,1913 +1,1734 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import "./App.css";
 
-const CATEGORIES = [
-  "Labour",
-  "Materials",
-  "Machine Rental",
-  "Travel / Transport",
-  "Food / Beverage",
-  "Other",
+const initialExpenses = [
+  {
+    id: 1,
+    title: "Cement",
+    category: "Materials",
+    room: "General",
+    amount: 18500,
+    date: "2026-09-10",
+    note: "50 bags",
+  },
+  {
+    id: 2,
+    title: "Bricks",
+    category: "Materials",
+    room: "Living Room",
+    amount: 12000,
+    date: "2026-09-11",
+    note: "2000 bricks",
+  },
+  {
+    id: 3,
+    title: "Mason Labour",
+    category: "Labour",
+    room: "Living Room",
+    amount: 8500,
+    date: "2026-09-12",
+    note: "5 days",
+  },
+  {
+    id: 4,
+    title: "Electrical Wiring",
+    category: "Electrical",
+    room: "Bedroom",
+    amount: 6500,
+    date: "2026-09-13",
+    note: "Wiring materials",
+  },
 ];
 
-const WORK_TYPES = [
-  "Mason",
-  "Normal Labour",
-  "Steel / Iron Worker",
-  "Carpenter",
-  "Painter",
-  "Electrician",
-  "Plumber",
-  "Other",
+const initialMaterials = [
+  {
+    id: 1,
+    name: "Cement",
+    category: "Construction",
+    quantity: 50,
+    unit: "bags",
+    rate: 370,
+    status: "Purchased",
+  },
+  {
+    id: 2,
+    name: "Bricks",
+    category: "Construction",
+    quantity: 2000,
+    unit: "pieces",
+    rate: 6,
+    status: "Purchased",
+  },
+  {
+    id: 3,
+    name: "Sand",
+    category: "Construction",
+    quantity: 3,
+    unit: "loads",
+    rate: 6500,
+    status: "Ordered",
+  },
+  {
+    id: 4,
+    name: "Electrical Wire",
+    category: "Electrical",
+    quantity: 5,
+    unit: "rolls",
+    rate: 1800,
+    status: "Pending",
+  },
 ];
 
-const STEEL_WORK_TYPES = [
-  "Basement Steel",
-  "Foundation Steel",
-  "Column Steel",
-  "Belt Beam Steel",
-  "Roof / Slab Steel",
-  "Staircase Steel",
-  "Other Steel Work",
+const initialLabour = [
+  {
+    id: 1,
+    worker: "Ramesh Team",
+    work: "Masonry",
+    days: 5,
+    rate: 900,
+    status: "Active",
+  },
+  {
+    id: 2,
+    worker: "Suresh",
+    work: "Electrical",
+    days: 2,
+    rate: 1000,
+    status: "Completed",
+  },
+  {
+    id: 3,
+    worker: "Painting Team",
+    work: "Painting",
+    days: 0,
+    rate: 0,
+    status: "Upcoming",
+  },
 ];
 
-const PROJECT_STAGES = [
-  "Planning",
-  "Foundation",
-  "Structure",
-  "Roof / Slab",
-  "Electrical",
-  "Plumbing",
-  "Flooring",
-  "Painting",
-  "Finishing",
+const initialTasks = [
+  {
+    id: 1,
+    title: "Remove old flooring",
+    room: "Living Room",
+    priority: "High",
+    status: "Completed",
+    due: "2026-09-12",
+  },
+  {
+    id: 2,
+    title: "Brick wall construction",
+    room: "Living Room",
+    priority: "High",
+    status: "In Progress",
+    due: "2026-09-20",
+  },
+  {
+    id: 3,
+    title: "Electrical wiring",
+    room: "Bedroom",
+    priority: "Medium",
+    status: "In Progress",
+    due: "2026-09-22",
+  },
+  {
+    id: 4,
+    title: "Wall painting",
+    room: "Bedroom",
+    priority: "Low",
+    status: "Pending",
+    due: "2026-09-28",
+  },
 ];
 
-const emptyForm = {
-  date: new Date().toISOString().slice(0, 10),
-  category: "Labour",
-  workType: "Mason",
-  steelWorkType: "",
-  description: "",
-  quantity: 1,
-  rate: 0,
-  total: 0,
-  paymentStatus: "Paid",
-  notes: "",
-};
+const initialRooms = [
+  {
+    id: 1,
+    name: "Living Room",
+    type: "Living",
+    progress: 65,
+    budget: 120000,
+  },
+  {
+    id: 2,
+    name: "Bedroom",
+    type: "Bedroom",
+    progress: 40,
+    budget: 80000,
+  },
+  {
+    id: 3,
+    name: "Kitchen",
+    type: "Kitchen",
+    progress: 20,
+    budget: 95000,
+  },
+  {
+    id: 4,
+    name: "Bathroom",
+    type: "Bathroom",
+    progress: 10,
+    budget: 70000,
+  },
+];
 
-const money = (value) => {
-  const amount = Number(value || 0);
+const navItems = [
+  { id: "dashboard", label: "Dashboard", icon: "⌂" },
+  { id: "expenses", label: "Expenses", icon: "₹" },
+  { id: "materials", label: "Materials", icon: "▦" },
+  { id: "labour", label: "Labour", icon: "♙" },
+  { id: "tasks", label: "Tasks", icon: "✓" },
+  { id: "rooms", label: "Rooms", icon: "⌂" },
+];
 
-  return `₹${amount.toLocaleString("en-IN", {
-    minimumFractionDigits: 0,
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
     maximumFractionDigits: 0,
-  })}`;
-};
-
-const formatDate = (value) => {
-  if (!value) return "-";
-
-  const date = new Date(`${value}T00:00:00`);
-
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const todayString = () => new Date().toISOString().slice(0, 10);
-
-const getMonday = (dateValue) => {
-  const date = new Date(`${dateValue}T00:00:00`);
-  const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-
-  date.setDate(date.getDate() + diff);
-
-  return date.toISOString().slice(0, 10);
-};
-
-const getSaturday = (mondayValue) => {
-  const date = new Date(`${mondayValue}T00:00:00`);
-  date.setDate(date.getDate() + 5);
-
-  return date.toISOString().slice(0, 10);
-};
+  }).format(value);
 
 function App() {
-  const restoreInputRef = useRef(null);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [expenses, setExpenses] = useState(initialExpenses);
+  const [materials, setMaterials] = useState(initialMaterials);
+  const [labour, setLabour] = useState(initialLabour);
+  const [tasks, setTasks] = useState(initialTasks);
+  const [rooms] = useState(initialRooms);
 
-  const [activePage, setActivePage] = useState("Dashboard");
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [showLabourModal, setShowLabourModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
-  const [expenses, setExpenses] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("renovationExpenses")) || [];
-    } catch {
-      return [];
-    }
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [materialSearch, setMaterialSearch] = useState("");
+
+  const [expenseForm, setExpenseForm] = useState({
+    title: "",
+    category: "Materials",
+    room: "General",
+    amount: "",
+    date: new Date().toISOString().slice(0, 10),
+    note: "",
   });
 
-  const [budget, setBudget] = useState(() => {
-    const saved = localStorage.getItem("renovationBudget");
-    return saved ? Number(saved) : 1000000;
+  const [materialForm, setMaterialForm] = useState({
+    name: "",
+    category: "Construction",
+    quantity: "",
+    unit: "bags",
+    rate: "",
+    status: "Pending",
   });
 
-  const [projectName, setProjectName] = useState(
+  const [labourForm, setLabourForm] = useState({
+    worker: "",
+    work: "Masonry",
+    days: "",
+    rate: "",
+    status: "Upcoming",
+  });
+
+  const [taskForm, setTaskForm] = useState({
+    title: "",
+    room: "Living Room",
+    priority: "Medium",
+    status: "Pending",
+    due: new Date().toISOString().slice(0, 10),
+  });
+
+  const budget = 400000;
+
+  const totalExpenses = useMemo(
+    () => expenses.reduce((sum, item) => sum + Number(item.amount), 0),
+    [expenses]
+  );
+
+  const materialValue = useMemo(
     () =>
-      localStorage.getItem("renovationProjectName") ||
-      "My House Renovation",
-  );
-
-  const [projectStage, setProjectStage] = useState(
-    () => localStorage.getItem("renovationProjectStage") || "Foundation",
-  );
-
-  const [darkMode, setDarkMode] = useState(
-    () => localStorage.getItem("renovaTheme") === "dark",
-  );
-
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [filterDate, setFilterDate] = useState("");
-  const [search, setSearch] = useState("");
-  const [reportWeek, setReportWeek] = useState(getMonday(todayString()));
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem("renovationExpenses", JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem("renovationBudget", String(budget));
-  }, [budget]);
-
-  useEffect(() => {
-    localStorage.setItem("renovationProjectName", projectName);
-  }, [projectName]);
-
-  useEffect(() => {
-    localStorage.setItem("renovationProjectStage", projectStage);
-  }, [projectStage]);
-
-  useEffect(() => {
-    localStorage.setItem("renovaTheme", darkMode ? "dark" : "light");
-    document.body.className = darkMode ? "dark-mode" : "";
-  }, [darkMode]);
-
-  useEffect(() => {
-    const quantity = Number(form.quantity || 0);
-    const rate = Number(form.rate || 0);
-
-    setForm((previous) => {
-      const total = quantity * rate;
-
-      if (previous.total === total) {
-        return previous;
-      }
-
-      return {
-        ...previous,
-        total,
-      };
-    });
-  }, [form.quantity, form.rate]);
-
-  const totalSpent = useMemo(
-    () =>
-      expenses.reduce(
-        (sum, expense) => sum + Number(expense.total || 0),
-        0,
+      materials.reduce(
+        (sum, item) => sum + Number(item.quantity) * Number(item.rate),
+        0
       ),
-    [expenses],
+    [materials]
   );
 
-  const totalPending = useMemo(
+  const labourValue = useMemo(
     () =>
-      expenses
-        .filter((expense) => expense.paymentStatus === "Pending")
-        .reduce((sum, expense) => sum + Number(expense.total || 0), 0),
-    [expenses],
+      labour.reduce(
+        (sum, item) => sum + Number(item.days) * Number(item.rate),
+        0
+      ),
+    [labour]
   );
 
-  const totalPaid = useMemo(
-    () =>
-      expenses
-        .filter((expense) => expense.paymentStatus !== "Pending")
-        .reduce((sum, expense) => sum + Number(expense.total || 0), 0),
-    [expenses],
+  const remainingBudget = Math.max(budget - totalExpenses, 0);
+  const budgetPercentage = Math.min(
+    Math.round((totalExpenses / budget) * 100),
+    100
   );
 
-  const remaining = Math.max(Number(budget || 0) - totalSpent, 0);
-
-  const budgetPercentage =
-    Number(budget || 0) > 0
-      ? Math.min((totalSpent / Number(budget)) * 100, 100)
-      : 0;
-
-  const todaySpent = useMemo(
-    () =>
-      expenses
-        .filter((expense) => expense.date === todayString())
-        .reduce((sum, expense) => sum + Number(expense.total || 0), 0),
-    [expenses],
+  const averageProgress = Math.round(
+    rooms.reduce((sum, room) => sum + room.progress, 0) / rooms.length
   );
 
-  const stageIndex = Math.max(PROJECT_STAGES.indexOf(projectStage), 0);
+  const completedTasks = tasks.filter(
+    (task) => task.status === "Completed"
+  ).length;
 
-  const filteredExpenses = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return expenses
-      .filter((expense) => {
-        const matchesDate = filterDate
-          ? expense.date === filterDate
-          : true;
-
-        if (!matchesDate) return false;
-
-        if (!query) return true;
-
-        return [
-          expense.description,
-          expense.category,
-          expense.workType,
-          expense.steelWorkType,
-          expense.notes,
-          expense.paymentStatus,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(query);
-      })
-      .sort((a, b) => {
-        const dateCompare = String(b.date).localeCompare(String(a.date));
-
-        if (dateCompare !== 0) return dateCompare;
-
-        return Number(b.id || 0) - Number(a.id || 0);
-      });
-  }, [expenses, filterDate, search]);
-
-  const categoryTotals = useMemo(() => {
-    return CATEGORIES.map((category) => ({
-      category,
-      total: expenses
-        .filter((expense) => expense.category === category)
-        .reduce((sum, expense) => sum + Number(expense.total || 0), 0),
-    }));
-  }, [expenses]);
-
-  const lastSevenDays = useMemo(() => {
-    const days = [];
-
-    for (let i = 6; i >= 0; i -= 1) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-
-      const dateString = date.toISOString().slice(0, 10);
-
-      const total = expenses
-        .filter((expense) => expense.date === dateString)
-        .reduce((sum, expense) => sum + Number(expense.total || 0), 0);
-
-      days.push({
-        date: dateString,
-        label: date.toLocaleDateString("en-IN", {
-          weekday: "short",
-        }),
-        total,
-      });
-    }
-
-    return days;
-  }, [expenses]);
-
-  const maxChartValue = Math.max(
-    ...lastSevenDays.map((day) => day.total),
-    1,
+  const filteredExpenses = expenses.filter((expense) =>
+    `${expense.title} ${expense.category} ${expense.room}`
+      .toLowerCase()
+      .includes(expenseSearch.toLowerCase())
   );
 
-  const recentExpenses = [...expenses]
-    .sort((a, b) => {
-      const dateCompare = String(b.date).localeCompare(String(a.date));
+  const filteredMaterials = materials.filter((material) =>
+    `${material.name} ${material.category}`
+      .toLowerCase()
+      .includes(materialSearch.toLowerCase())
+  );
 
-      if (dateCompare !== 0) return dateCompare;
-
-      return Number(b.id || 0) - Number(a.id || 0);
-    })
-    .slice(0, 6);
-
-  const calculatedTotal =
-    Number(form.quantity || 0) * Number(form.rate || 0);
-
-  const resetForm = () => {
-    setForm({
-      ...emptyForm,
-      date: todayString(),
-    });
-    setEditingId(null);
-  };
-
-  const saveExpense = (event) => {
+  function addExpense(event) {
     event.preventDefault();
 
-    const quantity = Number(form.quantity || 0);
-    const rate = Number(form.rate || 0);
-    const total = quantity * rate;
+    if (!expenseForm.title || !expenseForm.amount) return;
 
-    if (quantity <= 0) {
-      alert("Quantity must be greater than 0.");
-      return;
-    }
-
-    if (rate < 0) {
-      alert("Rate cannot be negative.");
-      return;
-    }
-
-    if (!form.description.trim()) {
-      alert("Please enter a description.");
-      return;
-    }
-
-    const expense = {
-      id: editingId || Date.now(),
-      date: form.date || todayString(),
-      category: form.category,
-      workType: form.workType,
-      steelWorkType:
-        form.category === "Materials" &&
-        form.workType === "Steel / Iron Worker"
-          ? form.steelWorkType
-          : "",
-      description: form.description.trim(),
-      quantity,
-      rate,
-      total,
-      paymentStatus: form.paymentStatus,
-      notes: form.notes.trim(),
-    };
-
-    if (editingId) {
-      setExpenses((previous) =>
-        previous.map((item) =>
-          item.id === editingId ? expense : item,
-        ),
-      );
-    } else {
-      setExpenses((previous) => [expense, ...previous]);
-    }
-
-    resetForm();
-    setActivePage("History");
-  };
-
-  const editExpense = (expense) => {
-    setForm({
-      date: expense.date || todayString(),
-      category: expense.category || "Labour",
-      workType: expense.workType || "Other",
-      steelWorkType: expense.steelWorkType || "",
-      description: expense.description || "",
-      quantity: Number(expense.quantity || 1),
-      rate: Number(expense.rate || 0),
-      total: Number(expense.total || 0),
-      paymentStatus: expense.paymentStatus || "Paid",
-      notes: expense.notes || "",
-    });
-
-    setEditingId(expense.id);
-    setActivePage("Add Expense");
-    setSidebarOpen(false);
-  };
-
-  const deleteExpense = (id) => {
-    const confirmed = window.confirm(
-      "Delete this expense permanently?",
-    );
-
-    if (!confirmed) return;
-
-    setExpenses((previous) =>
-      previous.filter((expense) => expense.id !== id),
-    );
-  };
-
-  const togglePayment = (id) => {
-    setExpenses((previous) =>
-      previous.map((expense) =>
-        expense.id === id
-          ? {
-              ...expense,
-              paymentStatus:
-                expense.paymentStatus === "Pending"
-                  ? "Paid"
-                  : "Pending",
-            }
-          : expense,
-      ),
-    );
-  };
-
-  const exportCSV = (data = expenses) => {
-    if (!data.length) {
-      alert("There is no expense data to export.");
-      return;
-    }
-
-    const headers = [
-      "Date",
-      "Category",
-      "Work Type",
-      "Steel Work Type",
-      "Description",
-      "Quantity",
-      "Rate",
-      "Total",
-      "Payment Status",
-      "Notes",
-    ];
-
-    const rows = data.map((expense) => [
-      expense.date,
-      expense.category,
-      expense.workType,
-      expense.steelWorkType || "",
-      expense.description,
-      expense.quantity,
-      expense.rate,
-      expense.total,
-      expense.paymentStatus,
-      expense.notes || "",
+    setExpenses((current) => [
+      {
+        id: Date.now(),
+        ...expenseForm,
+        amount: Number(expenseForm.amount),
+      },
+      ...current,
     ]);
 
-    const csv = [
-      headers,
-      ...rows,
-    ]
-      .map((row) =>
-        row
-          .map((value) => {
-            const text = String(value ?? "");
-            return `"${text.replaceAll('"', '""')}"`;
-          })
-          .join(","),
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], {
-      type: "text/csv;charset=utf-8;",
+    setExpenseForm({
+      title: "",
+      category: "Materials",
+      room: "General",
+      amount: "",
+      date: new Date().toISOString().slice(0, 10),
+      note: "",
     });
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    setShowExpenseModal(false);
+  }
 
-    link.href = url;
-    link.download = `renova-expenses-${todayString()}.csv`;
+  function addMaterial(event) {
+    event.preventDefault();
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (!materialForm.name || !materialForm.quantity || !materialForm.rate) {
+      return;
+    }
 
-    URL.revokeObjectURL(url);
-  };
-
-  const backupData = () => {
-    const backup = {
-      app: "RENOVA",
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      project: {
-        name: projectName,
-        budget,
-        stage: projectStage,
-      },
-      appearance: {
-        darkMode,
-      },
-      expenses,
-    };
-
-    const blob = new Blob(
-      [JSON.stringify(backup, null, 2)],
+    setMaterials((current) => [
       {
-        type: "application/json",
+        id: Date.now(),
+        ...materialForm,
+        quantity: Number(materialForm.quantity),
+        rate: Number(materialForm.rate),
       },
-    );
+      ...current,
+    ]);
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    setMaterialForm({
+      name: "",
+      category: "Construction",
+      quantity: "",
+      unit: "bags",
+      rate: "",
+      status: "Pending",
+    });
 
-    link.href = url;
-    link.download = `renova-backup-${todayString()}.json`;
+    setShowMaterialModal(false);
+  }
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  function addLabour(event) {
+    event.preventDefault();
 
-    URL.revokeObjectURL(url);
-  };
-
-  const restoreData = (event) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(String(reader.result));
-
-        const restoredExpenses = Array.isArray(data.expenses)
-          ? data.expenses
-          : [];
-
-        const restoredProject = data.project || {};
-
-        const restoredName =
-          restoredProject.name ||
-          data.projectName ||
-          "My House Renovation";
-
-        const restoredBudget = Number(
-          restoredProject.budget ?? data.budget ?? 1000000,
-        );
-
-        const restoredStage = PROJECT_STAGES.includes(
-          restoredProject.stage || data.projectStage,
-        )
-          ? restoredProject.stage || data.projectStage
-          : "Foundation";
-
-        const restoredDarkMode =
-          typeof data.appearance?.darkMode === "boolean"
-            ? data.appearance.darkMode
-            : typeof data.darkMode === "boolean"
-              ? data.darkMode
-              : null;
-
-        const confirmed = window.confirm(
-          "Restore this RENOVA backup?\n\nYour current project data will be replaced.",
-        );
-
-        if (!confirmed) {
-          event.target.value = "";
-          return;
-        }
-
-        localStorage.setItem(
-          "renovationExpenses",
-          JSON.stringify(restoredExpenses),
-        );
-
-        localStorage.setItem(
-          "renovationBudget",
-          String(
-            Number.isFinite(restoredBudget)
-              ? restoredBudget
-              : 1000000,
-          ),
-        );
-
-        localStorage.setItem(
-          "renovationProjectName",
-          String(restoredName),
-        );
-
-        localStorage.setItem(
-          "renovationProjectStage",
-          restoredStage,
-        );
-
-        if (restoredDarkMode !== null) {
-          localStorage.setItem(
-            "renovaTheme",
-            restoredDarkMode ? "dark" : "light",
-          );
-        }
-
-        alert(
-          "Backup restored successfully.\n\nRENOVA will refresh automatically.",
-        );
-
-        window.location.reload();
-      } catch {
-        alert(
-          "This is not a valid RENOVA backup file.",
-        );
-      } finally {
-        event.target.value = "";
-      }
-    };
-
-    reader.onerror = () => {
-      alert("Unable to read the backup file.");
-      event.target.value = "";
-    };
-
-    reader.readAsText(file);
-  };
-
-  const printReport = () => {
-    window.print();
-  };
-
-  const weekStart = reportWeek;
-  const weekEnd = getSaturday(reportWeek);
-
-  const weeklyExpenses = expenses.filter(
-    (expense) =>
-      expense.date >= weekStart && expense.date <= weekEnd,
-  );
-
-  const weeklyTotal = weeklyExpenses.reduce(
-    (sum, expense) => sum + Number(expense.total || 0),
-    0,
-  );
-
-  const weeklyPaid = weeklyExpenses
-    .filter((expense) => expense.paymentStatus !== "Pending")
-    .reduce((sum, expense) => sum + Number(expense.total || 0), 0);
-
-  const weeklyPending = weeklyExpenses
-    .filter((expense) => expense.paymentStatus === "Pending")
-    .reduce((sum, expense) => sum + Number(expense.total || 0), 0);
-
-  const shareReport = (type) => {
-    const message = [
-      `${projectName} - Weekly Renovation Report`,
-      `${formatDate(weekStart)} to ${formatDate(weekEnd)}`,
-      "",
-      `Total: ${money(weeklyTotal)}`,
-      `Paid: ${money(weeklyPaid)}`,
-      `Pending: ${money(weeklyPending)}`,
-      "",
-      `Overall spent: ${money(totalSpent)}`,
-      `Remaining budget: ${money(remaining)}`,
-    ].join("\n");
-
-    if (type === "email") {
-      window.location.href = `mailto:?subject=${encodeURIComponent(
-        `${projectName} - Weekly Report`,
-      )}&body=${encodeURIComponent(message)}`;
+    if (!labourForm.worker || !labourForm.days || !labourForm.rate) {
       return;
     }
 
-    if (type === "whatsapp") {
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(message)}`,
-        "_blank",
-      );
-      return;
-    }
+    setLabour((current) => [
+      {
+        id: Date.now(),
+        ...labourForm,
+        days: Number(labourForm.days),
+        rate: Number(labourForm.rate),
+      },
+      ...current,
+    ]);
 
-    if (type === "sms") {
-      window.location.href = `sms:?body=${encodeURIComponent(message)}`;
-    }
-  };
+    setLabourForm({
+      worker: "",
+      work: "Masonry",
+      days: "",
+      rate: "",
+      status: "Upcoming",
+    });
 
-  const resetAllData = () => {
-    const confirmed = window.confirm(
-      "This will delete all renovation expenses and reset the project data. Continue?",
+    setShowLabourModal(false);
+  }
+
+  function addTask(event) {
+    event.preventDefault();
+
+    if (!taskForm.title) return;
+
+    setTasks((current) => [
+      {
+        id: Date.now(),
+        ...taskForm,
+      },
+      ...current,
+    ]);
+
+    setTaskForm({
+      title: "",
+      room: "Living Room",
+      priority: "Medium",
+      status: "Pending",
+      due: new Date().toISOString().slice(0, 10),
+    });
+
+    setShowTaskModal(false);
+  }
+
+  function deleteExpense(id) {
+    setExpenses((current) => current.filter((item) => item.id !== id));
+  }
+
+  function deleteMaterial(id) {
+    setMaterials((current) => current.filter((item) => item.id !== id));
+  }
+
+  function deleteLabour(id) {
+    setLabour((current) => current.filter((item) => item.id !== id));
+  }
+
+  function deleteTask(id) {
+    setTasks((current) => current.filter((item) => item.id !== id));
+  }
+
+  function updateTaskStatus(id, status) {
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === id ? { ...task, status } : task
+      )
     );
+  }
 
-    if (!confirmed) return;
-
-    localStorage.removeItem("renovationExpenses");
-    localStorage.removeItem("renovationBudget");
-    localStorage.removeItem("renovationProjectName");
-    localStorage.removeItem("renovationProjectStage");
-
-    setExpenses([]);
-    setBudget(1000000);
-    setProjectName("My House Renovation");
-    setProjectStage("Foundation");
-
-    resetForm();
-  };
-
-  const pageTitle = {
-    Dashboard: "Dashboard",
-    "Add Expense": editingId ? "Edit Expense" : "Add Expense",
-    History: "Expense History",
-    Reports: "Weekly Reports",
-    Settings: "Settings",
-  }[activePage];
-
-  const pageSubtitle = {
-    Dashboard: "Track your renovation spending at a glance.",
-    "Add Expense": editingId
-      ? "Update your renovation expense."
-      : "Record a new renovation expense.",
-    History: "Search, filter and manage all expenses.",
-    Reports: "Review your Monday to Saturday renovation spending.",
-    Settings: "Manage your project and local data.",
-  }[activePage];
-
-  const navigate = (page) => {
-    setActivePage(page);
-    setSidebarOpen(false);
-
-    if (page === "Add Expense" && !editingId) {
-      resetForm();
-    }
-  };
-
-  return (
-    <div className={`app-shell ${darkMode ? "dark" : ""}`}>
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark">R</div>
-
+  function renderDashboard() {
+    return (
+      <>
+        <section className="hero-card">
           <div>
-            <div className="brand-name">RENOVA</div>
-            <div className="brand-subtitle">
-              House Renovation Tracker
+            <span className="eyebrow">RENOVA V2</span>
+            <h2>Home Renovation Project</h2>
+            <p>
+              Track your renovation budget, expenses, materials, labour and
+              progress from one place.
+            </p>
+
+            <div className="hero-meta">
+              <span>📍 Madurai Home</span>
+              <span>📅 Started Sep 2026</span>
+              <span>🏗️ Renovation</span>
             </div>
+          </div>
+
+          <div className="hero-progress">
+            <div className="progress-ring">
+              <strong>{averageProgress}%</strong>
+              <span>Complete</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="stats-grid">
+          <StatCard
+            icon="₹"
+            title="Total Budget"
+            value={formatCurrency(budget)}
+            subtitle="Project allocation"
+            tone="blue"
+          />
+
+          <StatCard
+            icon="↗"
+            title="Spent"
+            value={formatCurrency(totalExpenses)}
+            subtitle={`${budgetPercentage}% of budget`}
+            tone="orange"
+          />
+
+          <StatCard
+            icon="✓"
+            title="Remaining"
+            value={formatCurrency(remainingBudget)}
+            subtitle="Available budget"
+            tone="green"
+          />
+
+          <StatCard
+            icon="✓"
+            title="Tasks"
+            value={`${completedTasks}/${tasks.length}`}
+            subtitle="Tasks completed"
+            tone="purple"
+          />
+        </section>
+
+        <section className="dashboard-grid">
+          <div className="panel budget-panel">
+            <PanelHeader
+              title="Budget Overview"
+              subtitle="Current project spending"
+            />
+
+            <div className="budget-total">
+              <div>
+                <span>Used</span>
+                <strong>{formatCurrency(totalExpenses)}</strong>
+              </div>
+
+              <div className="budget-right">
+                <span>Budget</span>
+                <strong>{formatCurrency(budget)}</strong>
+              </div>
+            </div>
+
+            <div className="progress-track large">
+              <div
+                className="progress-fill"
+                style={{ width: `${budgetPercentage}%` }}
+              />
+            </div>
+
+            <div className="budget-footer">
+              <span>{budgetPercentage}% utilized</span>
+              <span>{formatCurrency(remainingBudget)} remaining</span>
+            </div>
+
+            <div className="mini-breakdown">
+              <BreakdownItem
+                label="Expenses"
+                value={formatCurrency(totalExpenses)}
+              />
+              <BreakdownItem
+                label="Materials"
+                value={formatCurrency(materialValue)}
+              />
+              <BreakdownItem
+                label="Labour"
+                value={formatCurrency(labourValue)}
+              />
+            </div>
+          </div>
+
+          <div className="panel">
+            <PanelHeader
+              title="Project Progress"
+              subtitle="Room-wise completion"
+            />
+
+            <div className="room-progress-list">
+              {rooms.map((room) => (
+                <div className="room-progress" key={room.id}>
+                  <div className="room-row">
+                    <div>
+                      <strong>{room.name}</strong>
+                      <span>{room.type}</span>
+                    </div>
+                    <strong>{room.progress}%</strong>
+                  </div>
+
+                  <div className="progress-track">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${room.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="dashboard-grid">
+          <div className="panel">
+            <PanelHeader
+              title="Recent Expenses"
+              subtitle="Latest project spending"
+              action={
+                <button
+                  className="text-button"
+                  onClick={() => setActivePage("expenses")}
+                >
+                  View all →
+                </button>
+              }
+            />
+
+            <ExpenseTable
+              expenses={expenses.slice(0, 4)}
+              onDelete={deleteExpense}
+            />
+          </div>
+
+          <div className="panel">
+            <PanelHeader
+              title="Upcoming Tasks"
+              subtitle="Work that needs attention"
+              action={
+                <button
+                  className="text-button"
+                  onClick={() => setActivePage("tasks")}
+                >
+                  View all →
+                </button>
+              }
+            />
+
+            <div className="task-list">
+              {tasks
+                .filter((task) => task.status !== "Completed")
+                .slice(0, 4)
+                .map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    onStatusChange={updateTaskStatus}
+                  />
+                ))}
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  function renderExpenses() {
+    return (
+      <PageLayout
+        title="Expenses"
+        subtitle="Track every renovation expense"
+        action={
+          <button
+            className="primary-button"
+            onClick={() => setShowExpenseModal(true)}
+          >
+            + Add Expense
+          </button>
+        }
+      >
+        <div className="toolbar">
+          <div className="search-box">
+            <span>⌕</span>
+            <input
+              value={expenseSearch}
+              onChange={(event) => setExpenseSearch(event.target.value)}
+              placeholder="Search expenses..."
+            />
+          </div>
+
+          <div className="toolbar-summary">
+            Total: <strong>{formatCurrency(totalExpenses)}</strong>
           </div>
         </div>
 
-        <nav className="nav-list">
-          {[
-            ["Dashboard", "⌂"],
-            ["Add Expense", "+"],
-            ["History", "▤"],
-            ["Reports", "▥"],
-            ["Settings", "⚙"],
-          ].map(([page, icon]) => (
+        <div className="panel table-panel">
+          <ExpenseTable
+            expenses={filteredExpenses}
+            onDelete={deleteExpense}
+          />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  function renderMaterials() {
+    return (
+      <PageLayout
+        title="Materials"
+        subtitle="Manage construction materials and purchases"
+        action={
+          <button
+            className="primary-button"
+            onClick={() => setShowMaterialModal(true)}
+          >
+            + Add Material
+          </button>
+        }
+      >
+        <div className="stats-grid compact">
+          <StatCard
+            icon="▦"
+            title="Material Items"
+            value={materials.length}
+            subtitle="Tracked items"
+            tone="blue"
+          />
+          <StatCard
+            icon="₹"
+            title="Material Value"
+            value={formatCurrency(materialValue)}
+            subtitle="Current value"
+            tone="green"
+          />
+          <StatCard
+            icon="!"
+            title="Pending"
+            value={materials.filter((m) => m.status === "Pending").length}
+            subtitle="Need attention"
+            tone="orange"
+          />
+        </div>
+
+        <div className="toolbar">
+          <div className="search-box">
+            <span>⌕</span>
+            <input
+              value={materialSearch}
+              onChange={(event) => setMaterialSearch(event.target.value)}
+              placeholder="Search materials..."
+            />
+          </div>
+        </div>
+
+        <div className="panel table-panel">
+          <MaterialTable
+            materials={filteredMaterials}
+            onDelete={deleteMaterial}
+          />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  function renderLabour() {
+    return (
+      <PageLayout
+        title="Labour"
+        subtitle="Track workers, teams and labour costs"
+        action={
+          <button
+            className="primary-button"
+            onClick={() => setShowLabourModal(true)}
+          >
+            + Add Labour
+          </button>
+        }
+      >
+        <div className="stats-grid compact">
+          <StatCard
+            icon="♙"
+            title="Teams / Workers"
+            value={labour.length}
+            subtitle="Active records"
+            tone="blue"
+          />
+
+          <StatCard
+            icon="₹"
+            title="Labour Cost"
+            value={formatCurrency(labourValue)}
+            subtitle="Recorded labour"
+            tone="orange"
+          />
+
+          <StatCard
+            icon="✓"
+            title="Completed"
+            value={labour.filter((x) => x.status === "Completed").length}
+            subtitle="Completed work"
+            tone="green"
+          />
+        </div>
+
+        <div className="panel table-panel">
+          <LabourTable labour={labour} onDelete={deleteLabour} />
+        </div>
+      </PageLayout>
+    );
+  }
+
+  function renderTasks() {
+    return (
+      <PageLayout
+        title="Tasks"
+        subtitle="Plan and monitor renovation work"
+        action={
+          <button
+            className="primary-button"
+            onClick={() => setShowTaskModal(true)}
+          >
+            + Add Task
+          </button>
+        }
+      >
+        <div className="task-columns">
+          {["Pending", "In Progress", "Completed"].map((status) => (
+            <div className="task-column" key={status}>
+              <div className="column-heading">
+                <div>
+                  <strong>{status}</strong>
+                  <span>
+                    {tasks.filter((task) => task.status === status).length}
+                  </span>
+                </div>
+              </div>
+
+              {tasks
+                .filter((task) => task.status === status)
+                .map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDelete={deleteTask}
+                    onStatusChange={updateTaskStatus}
+                  />
+                ))}
+
+              {tasks.filter((task) => task.status === status).length ===
+                0 && <div className="empty-column">No tasks</div>}
+            </div>
+          ))}
+        </div>
+      </PageLayout>
+    );
+  }
+
+  function renderRooms() {
+    return (
+      <PageLayout
+        title="Rooms & Areas"
+        subtitle="Track renovation progress by room"
+      >
+        <div className="room-grid">
+          {rooms.map((room) => (
+            <div className="room-card" key={room.id}>
+              <div className="room-icon">
+                {room.type === "Kitchen"
+                  ? "▣"
+                  : room.type === "Bathroom"
+                    ? "◇"
+                    : "⌂"}
+              </div>
+
+              <div className="room-card-header">
+                <div>
+                  <span>{room.type}</span>
+                  <h3>{room.name}</h3>
+                </div>
+
+                <strong>{room.progress}%</strong>
+              </div>
+
+              <div className="progress-track">
+                <div
+                  className="progress-fill"
+                  style={{ width: `${room.progress}%` }}
+                />
+              </div>
+
+              <div className="room-card-footer">
+                <span>Budget</span>
+                <strong>{formatCurrency(room.budget)}</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      </PageLayout>
+    );
+  }
+
+  function renderContent() {
+    switch (activePage) {
+      case "expenses":
+        return renderExpenses();
+      case "materials":
+        return renderMaterials();
+      case "labour":
+        return renderLabour();
+      case "tasks":
+        return renderTasks();
+      case "rooms":
+        return renderRooms();
+      default:
+        return renderDashboard();
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-mark">R</div>
+          <div>
+            <strong>RENOVA</strong>
+            <span>Home Project Manager</span>
+          </div>
+        </div>
+
+        <div className="sidebar-label">WORKSPACE</div>
+
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
             <button
-              key={page}
               className={`nav-item ${
-                activePage === page ? "active" : ""
+                activePage === item.id ? "active" : ""
               }`}
-              onClick={() => navigate(page)}
+              key={item.id}
+              onClick={() => setActivePage(item.id)}
             >
-              <span className="nav-icon">{icon}</span>
-              <span>{page}</span>
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-project">
-            <span className="sidebar-project-label">
-              Current project
-            </span>
-
-            <strong>{projectName}</strong>
-
-            <span>{projectStage}</span>
+          <div className="project-mini">
+            <span className="project-mini-icon">🏠</span>
+            <div>
+              <strong>My Renovation</strong>
+              <span>Active Project</span>
+            </div>
           </div>
 
-          <button
-            className="theme-button"
-            onClick={() => setDarkMode((value) => !value)}
-          >
-            {darkMode ? "☀ Light mode" : "☾ Dark mode"}
-          </button>
+          <div className="user-card">
+            <div className="avatar">G</div>
+            <div>
+              <strong>Gowtham</strong>
+              <span>Project Owner</span>
+            </div>
+          </div>
         </div>
       </aside>
 
-      {sidebarOpen && (
-        <button
-          className="sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close menu"
-        />
-      )}
-
       <main className="main-content">
         <header className="topbar">
-          <div className="topbar-left">
-            <button
-              className="mobile-menu"
-              onClick={() => setSidebarOpen(true)}
-            >
-              ☰
-            </button>
-
-            <div>
-              <h1>{pageTitle}</h1>
-              <p>{pageSubtitle}</p>
-            </div>
+          <div className="mobile-brand">
+            <div className="brand-mark">R</div>
+            <strong>RENOVA</strong>
           </div>
 
           <div className="topbar-right">
-            <div className="budget-mini">
-              <span>Budget</span>
-              <strong>{money(budget)}</strong>
-            </div>
-
-            <button
-              className="topbar-add"
-              onClick={() => navigate("Add Expense")}
-            >
-              + Add Expense
+            <button className="icon-button" title="Notifications">
+              ♢
             </button>
+
+            <div className="topbar-user">
+              <div className="avatar small">G</div>
+              <div>
+                <strong>Gowtham</strong>
+                <span>Owner</span>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="page-content">
-          {activePage === "Dashboard" && (
-            <section className="page-section">
-              <div className="hero-card">
-                <div>
-                  <span className="eyebrow">
-                    {projectStage}
-                  </span>
-
-                  <h2>{projectName}</h2>
-
-                  <p>
-                    Keep every renovation expense organized,
-                    visible and under control.
-                  </p>
-                </div>
-
-                <div className="hero-progress">
-                  <div className="progress-circle">
-                    <strong>
-                      {Math.round(budgetPercentage)}%
-                    </strong>
-                    <span>used</span>
-                  </div>
-                </div>
+        <div className="content-area">
+          {activePage === "dashboard" && (
+            <div className="page-heading">
+              <div>
+                <span className="eyebrow">OVERVIEW</span>
+                <h1>Good afternoon, Gowtham 👋</h1>
+                <p>Here's what's happening with your renovation project.</p>
               </div>
 
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon">₹</div>
-                  <span>Total spent</span>
-                  <strong>{money(totalSpent)}</strong>
-                  <small>
-                    {expenses.length} expense
-                    {expenses.length === 1 ? "" : "s"}
-                  </small>
-                </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon">✓</div>
-                  <span>Paid</span>
-                  <strong>{money(totalPaid)}</strong>
-                  <small>Completed payments</small>
-                </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon">!</div>
-                  <span>Pending</span>
-                  <strong>{money(totalPending)}</strong>
-                  <small>Payments pending</small>
-                </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon">↗</div>
-                  <span>Remaining</span>
-                  <strong>{money(remaining)}</strong>
-                  <small>Available budget</small>
-                </div>
+              <div className="date-chip">
+                <span>Today</span>
+                <strong>
+                  {new Date().toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </strong>
               </div>
-
-              <div className="dashboard-grid">
-                <div className="content-card chart-card">
-                  <div className="card-header">
-                    <div>
-                      <h3>Last 7 days</h3>
-                      <p>Daily renovation spending</p>
-                    </div>
-                  </div>
-
-                  <div className="bar-chart">
-                    {lastSevenDays.map((day) => (
-                      <div
-                        className="bar-column"
-                        key={day.date}
-                      >
-                        <span className="bar-value">
-                          {day.total > 0
-                            ? money(day.total)
-                            : ""}
-                        </span>
-
-                        <div className="bar-track">
-                          <div
-                            className="bar-fill"
-                            style={{
-                              height: `${Math.max(
-                                (day.total / maxChartValue) *
-                                  100,
-                                day.total > 0 ? 8 : 0,
-                              )}%`,
-                            }}
-                          />
-                        </div>
-
-                        <span className="bar-label">
-                          {day.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="content-card">
-                  <div className="card-header">
-                    <div>
-                      <h3>Budget progress</h3>
-                      <p>Current project budget</p>
-                    </div>
-
-                    <strong>
-                      {Math.round(budgetPercentage)}%
-                    </strong>
-                  </div>
-
-                  <div className="large-progress">
-                    <div
-                      style={{
-                        width: `${budgetPercentage}%`,
-                      }}
-                    />
-                  </div>
-
-                  <div className="budget-row">
-                    <span>Spent</span>
-                    <strong>{money(totalSpent)}</strong>
-                  </div>
-
-                  <div className="budget-row">
-                    <span>Remaining</span>
-                    <strong>{money(remaining)}</strong>
-                  </div>
-
-                  <div className="budget-row">
-                    <span>Today</span>
-                    <strong>{money(todaySpent)}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-grid">
-                <div className="content-card">
-                  <div className="card-header">
-                    <div>
-                      <h3>Recent expenses</h3>
-                      <p>Your latest renovation activity</p>
-                    </div>
-
-                    <button
-                      className="text-button"
-                      onClick={() => navigate("History")}
-                    >
-                      View all →
-                    </button>
-                  </div>
-
-                  {recentExpenses.length === 0 ? (
-                    <div className="empty-state">
-                      <div>₹</div>
-                      <h3>No expenses yet</h3>
-                      <p>
-                        Start tracking your renovation costs.
-                      </p>
-
-                      <button
-                        className="primary-button"
-                        onClick={() => navigate("Add Expense")}
-                      >
-                        Add first expense
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="expense-list">
-                      {recentExpenses.map((expense) => (
-                        <div
-                          className="expense-row"
-                          key={expense.id}
-                        >
-                          <div className="expense-main">
-                            <div className="expense-avatar">
-                              {expense.category
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-
-                            <div>
-                              <strong>
-                                {expense.description}
-                              </strong>
-
-                              <span>
-                                {expense.category} ·{" "}
-                                {formatDate(expense.date)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="expense-amount">
-                            <strong>
-                              {money(expense.total)}
-                            </strong>
-
-                            <span
-                              className={`status ${
-                                expense.paymentStatus ===
-                                "Pending"
-                                  ? "pending"
-                                  : "paid"
-                              }`}
-                            >
-                              {expense.paymentStatus}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="content-card">
-                  <div className="card-header">
-                    <div>
-                      <h3>Category spending</h3>
-                      <p>Where your money is going</p>
-                    </div>
-                  </div>
-
-                  <div className="category-list">
-                    {categoryTotals.map((item) => {
-                      const percentage =
-                        totalSpent > 0
-                          ? (item.total / totalSpent) * 100
-                          : 0;
-
-                      return (
-                        <div
-                          className="category-item"
-                          key={item.category}
-                        >
-                          <div className="category-heading">
-                            <span>{item.category}</span>
-                            <strong>
-                              {money(item.total)}
-                            </strong>
-                          </div>
-
-                          <div className="category-track">
-                            <div
-                              style={{
-                                width: `${percentage}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              <div className="content-card stages-card">
-                <div className="card-header">
-                  <div>
-                    <h3>Renovation stages</h3>
-                    <p>Track your current project phase</p>
-                  </div>
-                </div>
-
-                <div className="stage-list">
-                  {PROJECT_STAGES.map((stage, index) => (
-                    <div
-                      className={`stage-item ${
-                        index < stageIndex
-                          ? "completed"
-                          : ""
-                      } ${
-                        index === stageIndex
-                          ? "current"
-                          : ""
-                      }`}
-                      key={stage}
-                    >
-                      <div className="stage-dot">
-                        {index < stageIndex
-                          ? "✓"
-                          : index + 1}
-                      </div>
-
-                      <span>{stage}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
+            </div>
           )}
 
-          {activePage === "Add Expense" && (
-            <section className="page-section narrow-section">
-              <div className="form-card">
-                <div className="form-card-header">
-                  <div>
-                    <span className="eyebrow">
-                      Expense entry
-                    </span>
-
-                    <h2>
-                      {editingId
-                        ? "Edit expense"
-                        : "Add a new expense"}
-                    </h2>
-
-                    <p>
-                      Enter the details below to update your
-                      renovation budget.
-                    </p>
-                  </div>
-
-                  {editingId && (
-                    <button
-                      className="secondary-button"
-                      onClick={resetForm}
-                    >
-                      Cancel edit
-                    </button>
-                  )}
-                </div>
-
-                <form onSubmit={saveExpense}>
-                  <div className="form-grid">
-                    <label className="field">
-                      <span>Date</span>
-                      <input
-                        type="date"
-                        value={form.date}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            date: event.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>Category</span>
-                      <select
-                        value={form.category}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            category: event.target.value,
-                          })
-                        }
-                      >
-                        {CATEGORIES.map((category) => (
-                          <option
-                            key={category}
-                            value={category}
-                          >
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="field">
-                      <span>Work type</span>
-                      <select
-                        value={form.workType}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            workType: event.target.value,
-                          })
-                        }
-                      >
-                        {WORK_TYPES.map((workType) => (
-                          <option
-                            key={workType}
-                            value={workType}
-                          >
-                            {workType}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {form.category === "Materials" &&
-                      form.workType ===
-                        "Steel / Iron Worker" && (
-                        <label className="field">
-                          <span>Steel work</span>
-                          <select
-                            value={form.steelWorkType}
-                            onChange={(event) =>
-                              setForm({
-                                ...form,
-                                steelWorkType:
-                                  event.target.value,
-                              })
-                            }
-                          >
-                            <option value="">
-                              Select steel work
-                            </option>
-
-                            {STEEL_WORK_TYPES.map(
-                              (steelType) => (
-                                <option
-                                  key={steelType}
-                                  value={steelType}
-                                >
-                                  {steelType}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-                      )}
-
-                    <label className="field field-wide">
-                      <span>Description</span>
-                      <input
-                        type="text"
-                        placeholder="Example: Cement bags"
-                        value={form.description}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            description:
-                              event.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>Quantity</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={form.quantity}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            quantity: event.target.value,
-                          })
-                        }
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>Rate</span>
-                      <div className="input-prefix">
-                        <span>₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={form.rate}
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              rate: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </label>
-
-                    <div className="field">
-                      <span>Total</span>
-                      <div className="total-preview">
-                        {money(calculatedTotal)}
-                      </div>
-                    </div>
-
-                    <label className="field">
-                      <span>Payment status</span>
-                      <select
-                        value={form.paymentStatus}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            paymentStatus:
-                              event.target.value,
-                          })
-                        }
-                      >
-                        <option value="Paid">Paid</option>
-                        <option value="Pending">
-                          Pending
-                        </option>
-                      </select>
-                    </label>
-
-                    <label className="field field-wide">
-                      <span>Notes</span>
-                      <textarea
-                        rows="4"
-                        placeholder="Optional notes..."
-                        value={form.notes}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            notes: event.target.value,
-                          })
-                        }
-                      />
-                    </label>
-                  </div>
-
-                  <div className="form-footer">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={resetForm}
-                    >
-                      Clear
-                    </button>
-
-                    <button
-                      type="submit"
-                      className="primary-button"
-                    >
-                      {editingId
-                        ? "Update expense"
-                        : "Save expense"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </section>
-          )}
-
-          {activePage === "History" && (
-            <section className="page-section">
-              <div className="content-card">
-                <div className="card-header history-header">
-                  <div>
-                    <h3>Expense history</h3>
-                    <p>
-                      {filteredExpenses.length} result
-                      {filteredExpenses.length === 1
-                        ? ""
-                        : "s"}
-                    </p>
-                  </div>
-
-                  <button
-                    className="secondary-button"
-                    onClick={() =>
-                      exportCSV(filteredExpenses)
-                    }
-                  >
-                    ↓ Export CSV
-                  </button>
-                </div>
-
-                <div className="filter-bar">
-                  <div className="search-box">
-                    <span>⌕</span>
-
-                    <input
-                      type="text"
-                      placeholder="Search expenses..."
-                      value={search}
-                      onChange={(event) =>
-                        setSearch(event.target.value)
-                      }
-                    />
-                  </div>
-
-                  <input
-                    type="date"
-                    value={filterDate}
-                    onChange={(event) =>
-                      setFilterDate(event.target.value)
-                    }
-                  />
-
-                  {(filterDate || search) && (
-                    <button
-                      className="secondary-button"
-                      onClick={() => {
-                        setFilterDate("");
-                        setSearch("");
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                </div>
-
-                {filteredExpenses.length === 0 ? (
-                  <div className="empty-state">
-                    <div>▤</div>
-                    <h3>No expenses found</h3>
-                    <p>
-                      Try another search or add a new
-                      expense.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Description</th>
-                          <th>Category</th>
-                          <th>Work</th>
-                          <th>Qty</th>
-                          <th>Total</th>
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {filteredExpenses.map((expense) => (
-                          <tr key={expense.id}>
-                            <td>{formatDate(expense.date)}</td>
-
-                            <td>
-                              <strong>
-                                {expense.description}
-                              </strong>
-
-                              {expense.notes && (
-                                <small>
-                                  {expense.notes}
-                                </small>
-                              )}
-                            </td>
-
-                            <td>{expense.category}</td>
-
-                            <td>
-                              {expense.steelWorkType ||
-                                expense.workType}
-                            </td>
-
-                            <td>{expense.quantity}</td>
-
-                            <td>
-                              <strong>
-                                {money(expense.total)}
-                              </strong>
-                            </td>
-
-                            <td>
-                              <button
-                                className={`status ${
-                                  expense.paymentStatus ===
-                                  "Pending"
-                                    ? "pending"
-                                    : "paid"
-                                } status-button`}
-                                onClick={() =>
-                                  togglePayment(
-                                    expense.id,
-                                  )
-                                }
-                              >
-                                {expense.paymentStatus}
-                              </button>
-                            </td>
-
-                            <td>
-                              <div className="table-actions">
-                                <button
-                                  className="icon-button"
-                                  onClick={() =>
-                                    editExpense(expense)
-                                  }
-                                  title="Edit"
-                                >
-                                  ✎
-                                </button>
-
-                                <button
-                                  className="icon-button danger-icon"
-                                  onClick={() =>
-                                    deleteExpense(
-                                      expense.id,
-                                    )
-                                  }
-                                  title="Delete"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {activePage === "Reports" && (
-            <section className="page-section">
-              <div className="report-toolbar content-card">
-                <div>
-                  <span className="eyebrow">
-                    Weekly report
-                  </span>
-
-                  <h2>
-                    {formatDate(weekStart)} —{" "}
-                    {formatDate(weekEnd)}
-                  </h2>
-                </div>
-
-                <div className="week-controls">
-                  <button
-                    className="secondary-button"
-                    onClick={() => {
-                      const date = new Date(
-                        `${reportWeek}T00:00:00`,
-                      );
-
-                      date.setDate(date.getDate() - 7);
-
-                      setReportWeek(
-                        date.toISOString().slice(0, 10),
-                      );
-                    }}
-                  >
-                    ← Previous
-                  </button>
-
-                  <input
-                    type="date"
-                    value={reportWeek}
-                    onChange={(event) =>
-                      setReportWeek(
-                        getMonday(event.target.value),
-                      )
-                    }
-                  />
-
-                  <button
-                    className="secondary-button"
-                    onClick={() => {
-                      const date = new Date(
-                        `${reportWeek}T00:00:00`,
-                      );
-
-                      date.setDate(date.getDate() + 7);
-
-                      setReportWeek(
-                        date.toISOString().slice(0, 10),
-                      );
-                    }}
-                  >
-                    Next →
-                  </button>
-                </div>
-              </div>
-
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <span>Weekly total</span>
-                  <strong>{money(weeklyTotal)}</strong>
-                  <small>
-                    {weeklyExpenses.length} expense
-                    {weeklyExpenses.length === 1
-                      ? ""
-                      : "s"}
-                  </small>
-                </div>
-
-                <div className="stat-card">
-                  <span>Paid</span>
-                  <strong>{money(weeklyPaid)}</strong>
-                  <small>Paid this week</small>
-                </div>
-
-                <div className="stat-card">
-                  <span>Pending</span>
-                  <strong>{money(weeklyPending)}</strong>
-                  <small>Pending this week</small>
-                </div>
-
-                <div className="stat-card">
-                  <span>Average/day</span>
-                  <strong>
-                    {money(weeklyTotal / 6)}
-                  </strong>
-                  <small>Monday to Saturday</small>
-                </div>
-              </div>
-
-              <div className="content-card">
-                <div className="card-header">
-                  <div>
-                    <h3>Weekly expenses</h3>
-                    <p>
-                      Monday to Saturday breakdown
-                    </p>
-                  </div>
-
-                  <div className="share-buttons">
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        shareReport("email")
-                      }
-                    >
-                      Email
-                    </button>
-
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        shareReport("whatsapp")
-                      }
-                    >
-                      WhatsApp
-                    </button>
-
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        shareReport("sms")
-                      }
-                    >
-                      SMS
-                    </button>
-
-                    <button
-                      className="secondary-button"
-                      onClick={printReport}
-                    >
-                      ⎙ Print
-                    </button>
-                  </div>
-                </div>
-
-                {weeklyExpenses.length === 0 ? (
-                  <div className="empty-state">
-                    <div>▥</div>
-                    <h3>No expenses this week</h3>
-                    <p>
-                      There are no expenses between{" "}
-                      {formatDate(weekStart)} and{" "}
-                      {formatDate(weekEnd)}.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Description</th>
-                          <th>Category</th>
-                          <th>Work</th>
-                          <th>Amount</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-
-                      <tbody>
-                        {weeklyExpenses
-                          .sort((a, b) =>
-                            String(a.date).localeCompare(
-                              String(b.date),
-                            ),
-                          )
-                          .map((expense) => (
-                            <tr key={expense.id}>
-                              <td>
-                                {formatDate(expense.date)}
-                              </td>
-
-                              <td>
-                                {expense.description}
-                              </td>
-
-                              <td>{expense.category}</td>
-
-                              <td>
-                                {expense.steelWorkType ||
-                                  expense.workType}
-                              </td>
-
-                              <td>
-                                <strong>
-                                  {money(expense.total)}
-                                </strong>
-                              </td>
-
-                              <td>
-                                <span
-                                  className={`status ${
-                                    expense.paymentStatus ===
-                                    "Pending"
-                                      ? "pending"
-                                      : "paid"
-                                  }`}
-                                >
-                                  {expense.paymentStatus}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
-          {activePage === "Settings" && (
-            <section className="page-section settings-section">
-              <div className="settings-card">
-                <div className="settings-icon">⌂</div>
-
-                <div className="settings-card-heading">
-                  <h3>Project</h3>
-                  <p>
-                    Update your renovation project details.
-                  </p>
-                </div>
-
-                <div className="settings-fields">
-                  <label className="field">
-                    <span>Project name</span>
-                    <input
-                      type="text"
-                      value={projectName}
-                      onChange={(event) =>
-                        setProjectName(event.target.value)
-                      }
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Current stage</span>
-                    <select
-                      value={projectStage}
-                      onChange={(event) =>
-                        setProjectStage(event.target.value)
-                      }
-                    >
-                      {PROJECT_STAGES.map((stage) => (
-                        <option
-                          key={stage}
-                          value={stage}
-                        >
-                          {stage}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>Total budget</span>
-
-                    <div className="input-prefix">
-                      <span>₹</span>
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={budget}
-                        onChange={(event) =>
-                          setBudget(
-                            Number(event.target.value),
-                          )
-                        }
-                      />
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-icon">☾</div>
-
-                <div className="settings-card-heading">
-                  <h3>Appearance</h3>
-                  <p>
-                    Customize how RENOVA looks on your
-                    device.
-                  </p>
-                </div>
-
-                <div className="settings-actions">
-                  <button
-                    className="secondary-button"
-                    onClick={() =>
-                      setDarkMode((value) => !value)
-                    }
-                  >
-                    {darkMode
-                      ? "☀ Switch to light mode"
-                      : "☾ Switch to dark mode"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-card">
-                <div className="settings-icon">↓</div>
-
-                <div className="settings-card-heading">
-                  <h3>Data & Backup</h3>
-                  <p>
-                    Backup your RENOVA data or restore a
-                    previous backup.
-                  </p>
-                </div>
-
-                <div className="settings-actions">
-                  <button
-                    className="secondary-button"
-                    onClick={backupData}
-                  >
-                    ↓ Backup JSON
-                  </button>
-
-                  <button
-                    className="secondary-button"
-                    onClick={() =>
-                      restoreInputRef.current?.click()
-                    }
-                  >
-                    ↑ Restore Backup
-                  </button>
-
-                  <input
-                    ref={restoreInputRef}
-                    type="file"
-                    accept=".json,application/json"
-                    className="hidden-file-input"
-                    onChange={restoreData}
-                  />
-
-                  <button
-                    className="secondary-button"
-                    onClick={() =>
-                      exportCSV(expenses)
-                    }
-                  >
-                    ↓ Export CSV
-                  </button>
-
-                  <button
-                    className="secondary-button"
-                    onClick={printReport}
-                  >
-                    ⎙ Print
-                  </button>
-                </div>
-
-                <div className="data-note">
-                  Restore replaces the current project
-                  data and automatically refreshes RENOVA
-                  after a successful restore.
-                </div>
-              </div>
-
-              <div className="settings-card danger-card">
-                <div className="settings-icon">!</div>
-
-                <div className="settings-card-heading">
-                  <h3>Reset project</h3>
-                  <p>
-                    Permanently remove all local
-                    renovation data.
-                  </p>
-                </div>
-
-                <div className="settings-actions">
-                  <button
-                    className="danger-button"
-                    onClick={resetAllData}
-                  >
-                    Reset all data
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
+          {renderContent()}
         </div>
       </main>
+
+      {showExpenseModal && (
+        <Modal
+          title="Add Expense"
+          subtitle="Record a new project expense"
+          onClose={() => setShowExpenseModal(false)}
+        >
+          <form onSubmit={addExpense} className="form-grid">
+            <FormField label="Expense name">
+              <input
+                value={expenseForm.title}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    title: event.target.value,
+                  })
+                }
+                placeholder="e.g. Cement purchase"
+                required
+              />
+            </FormField>
+
+            <FormField label="Amount">
+              <input
+                type="number"
+                min="0"
+                value={expenseForm.amount}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    amount: event.target.value,
+                  })
+                }
+                placeholder="₹ 0"
+                required
+              />
+            </FormField>
+
+            <FormField label="Category">
+              <select
+                value={expenseForm.category}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    category: event.target.value,
+                  })
+                }
+              >
+                <option>Materials</option>
+                <option>Labour</option>
+                <option>Electrical</option>
+                <option>Plumbing</option>
+                <option>Painting</option>
+                <option>Furniture</option>
+                <option>Other</option>
+              </select>
+            </FormField>
+
+            <FormField label="Room">
+              <select
+                value={expenseForm.room}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    room: event.target.value,
+                  })
+                }
+              >
+                <option>General</option>
+                {rooms.map((room) => (
+                  <option key={room.id}>{room.name}</option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Date">
+              <input
+                type="date"
+                value={expenseForm.date}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    date: event.target.value,
+                  })
+                }
+              />
+            </FormField>
+
+            <FormField label="Note" full>
+              <textarea
+                value={expenseForm.note}
+                onChange={(event) =>
+                  setExpenseForm({
+                    ...expenseForm,
+                    note: event.target.value,
+                  })
+                }
+                placeholder="Additional details..."
+                rows="3"
+              />
+            </FormField>
+
+            <ModalActions
+              onCancel={() => setShowExpenseModal(false)}
+              submit="Save Expense"
+            />
+          </form>
+        </Modal>
+      )}
+
+      {showMaterialModal && (
+        <Modal
+          title="Add Material"
+          subtitle="Add a construction material"
+          onClose={() => setShowMaterialModal(false)}
+        >
+          <form onSubmit={addMaterial} className="form-grid">
+            <FormField label="Material name" full>
+              <input
+                value={materialForm.name}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    name: event.target.value,
+                  })
+                }
+                placeholder="e.g. Tiles"
+                required
+              />
+            </FormField>
+
+            <FormField label="Category">
+              <select
+                value={materialForm.category}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    category: event.target.value,
+                  })
+                }
+              >
+                <option>Construction</option>
+                <option>Electrical</option>
+                <option>Plumbing</option>
+                <option>Painting</option>
+                <option>Furniture</option>
+              </select>
+            </FormField>
+
+            <FormField label="Quantity">
+              <input
+                type="number"
+                min="0"
+                value={materialForm.quantity}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    quantity: event.target.value,
+                  })
+                }
+                required
+              />
+            </FormField>
+
+            <FormField label="Unit">
+              <select
+                value={materialForm.unit}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    unit: event.target.value,
+                  })
+                }
+              >
+                <option>bags</option>
+                <option>pieces</option>
+                <option>loads</option>
+                <option>rolls</option>
+                <option>boxes</option>
+                <option>sq.ft</option>
+                <option>litres</option>
+              </select>
+            </FormField>
+
+            <FormField label="Rate">
+              <input
+                type="number"
+                min="0"
+                value={materialForm.rate}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    rate: event.target.value,
+                  })
+                }
+                placeholder="₹"
+                required
+              />
+            </FormField>
+
+            <FormField label="Status">
+              <select
+                value={materialForm.status}
+                onChange={(event) =>
+                  setMaterialForm({
+                    ...materialForm,
+                    status: event.target.value,
+                  })
+                }
+              >
+                <option>Pending</option>
+                <option>Ordered</option>
+                <option>Purchased</option>
+              </select>
+            </FormField>
+
+            <ModalActions
+              onCancel={() => setShowMaterialModal(false)}
+              submit="Save Material"
+            />
+          </form>
+        </Modal>
+      )}
+
+      {showLabourModal && (
+        <Modal
+          title="Add Labour"
+          subtitle="Add a worker or labour team"
+          onClose={() => setShowLabourModal(false)}
+        >
+          <form onSubmit={addLabour} className="form-grid">
+            <FormField label="Worker / Team" full>
+              <input
+                value={labourForm.worker}
+                onChange={(event) =>
+                  setLabourForm({
+                    ...labourForm,
+                    worker: event.target.value,
+                  })
+                }
+                placeholder="e.g. Kumar Mason Team"
+                required
+              />
+            </FormField>
+
+            <FormField label="Work type">
+              <select
+                value={labourForm.work}
+                onChange={(event) =>
+                  setLabourForm({
+                    ...labourForm,
+                    work: event.target.value,
+                  })
+                }
+              >
+                <option>Masonry</option>
+                <option>Electrical</option>
+                <option>Plumbing</option>
+                <option>Painting</option>
+                <option>Carpentry</option>
+                <option>Other</option>
+              </select>
+            </FormField>
+
+            <FormField label="Days">
+              <input
+                type="number"
+                min="0"
+                value={labourForm.days}
+                onChange={(event) =>
+                  setLabourForm({
+                    ...labourForm,
+                    days: event.target.value,
+                  })
+                }
+                required
+              />
+            </FormField>
+
+            <FormField label="Daily rate">
+              <input
+                type="number"
+                min="0"
+                value={labourForm.rate}
+                onChange={(event) =>
+                  setLabourForm({
+                    ...labourForm,
+                    rate: event.target.value,
+                  })
+                }
+                placeholder="₹"
+                required
+              />
+            </FormField>
+
+            <FormField label="Status">
+              <select
+                value={labourForm.status}
+                onChange={(event) =>
+                  setLabourForm({
+                    ...labourForm,
+                    status: event.target.value,
+                  })
+                }
+              >
+                <option>Upcoming</option>
+                <option>Active</option>
+                <option>Completed</option>
+              </select>
+            </FormField>
+
+            <ModalActions
+              onCancel={() => setShowLabourModal(false)}
+              submit="Save Labour"
+            />
+          </form>
+        </Modal>
+      )}
+
+      {showTaskModal && (
+        <Modal
+          title="Add Task"
+          subtitle="Create a renovation task"
+          onClose={() => setShowTaskModal(false)}
+        >
+          <form onSubmit={addTask} className="form-grid">
+            <FormField label="Task name" full>
+              <input
+                value={taskForm.title}
+                onChange={(event) =>
+                  setTaskForm({
+                    ...taskForm,
+                    title: event.target.value,
+                  })
+                }
+                placeholder="e.g. Install floor tiles"
+                required
+              />
+            </FormField>
+
+            <FormField label="Room">
+              <select
+                value={taskForm.room}
+                onChange={(event) =>
+                  setTaskForm({
+                    ...taskForm,
+                    room: event.target.value,
+                  })
+                }
+              >
+                {rooms.map((room) => (
+                  <option key={room.id}>{room.name}</option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField label="Priority">
+              <select
+                value={taskForm.priority}
+                onChange={(event) =>
+                  setTaskForm({
+                    ...taskForm,
+                    priority: event.target.value,
+                  })
+                }
+              >
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+            </FormField>
+
+            <FormField label="Status">
+              <select
+                value={taskForm.status}
+                onChange={(event) =>
+                  setTaskForm({
+                    ...taskForm,
+                    status: event.target.value,
+                  })
+                }
+              >
+                <option>Pending</option>
+                <option>In Progress</option>
+                <option>Completed</option>
+              </select>
+            </FormField>
+
+            <FormField label="Due date">
+              <input
+                type="date"
+                value={taskForm.due}
+                onChange={(event) =>
+                  setTaskForm({
+                    ...taskForm,
+                    due: event.target.value,
+                  })
+                }
+              />
+            </FormField>
+
+            <ModalActions
+              onCancel={() => setShowTaskModal(false)}
+              submit="Create Task"
+            />
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function PageLayout({ title, subtitle, action, children }) {
+  return (
+    <>
+      <div className="page-heading inner">
+        <div>
+          <span className="eyebrow">RENOVA</span>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
+        </div>
+
+        {action && <div>{action}</div>}
+      </div>
+
+      {children}
+    </>
+  );
+}
+
+function StatCard({ icon, title, value, subtitle, tone }) {
+  return (
+    <div className={`stat-card ${tone}`}>
+      <div className="stat-icon">{icon}</div>
+      <div className="stat-content">
+        <span>{title}</span>
+        <strong>{value}</strong>
+        <small>{subtitle}</small>
+      </div>
+    </div>
+  );
+}
+
+function PanelHeader({ title, subtitle, action }) {
+  return (
+    <div className="panel-header">
+      <div>
+        <h3>{title}</h3>
+        <p>{subtitle}</p>
+      </div>
+
+      {action}
+    </div>
+  );
+}
+
+function BreakdownItem({ label, value }) {
+  return (
+    <div className="breakdown-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function ExpenseTable({ expenses, onDelete }) {
+  if (!expenses.length) {
+    return <EmptyState text="No expenses found." />;
+  }
+
+  return (
+    <div className="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Expense</th>
+            <th>Category</th>
+            <th>Room</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th />
+          </tr>
+        </thead>
+
+        <tbody>
+          {expenses.map((expense) => (
+            <tr key={expense.id}>
+              <td>
+                <div className="table-primary">
+                  <strong>{expense.title}</strong>
+                  {expense.note && <span>{expense.note}</span>}
+                </div>
+              </td>
+
+              <td>
+                <StatusBadge text={expense.category} />
+              </td>
+
+              <td>{expense.room}</td>
+              <td>{expense.date}</td>
+
+              <td>
+                <strong>{formatCurrency(expense.amount)}</strong>
+              </td>
+
+              <td>
+                <button
+                  className="delete-button"
+                  onClick={() => onDelete(expense.id)}
+                  title="Delete"
+                >
+                  ×
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MaterialTable({ materials, onDelete }) {
+  if (!materials.length) {
+    return <EmptyState text="No materials found." />;
+  }
+
+  return (
+    <div className="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th>Category</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+
+        <tbody>
+          {materials.map((material) => {
+            const total =
+              Number(material.quantity) * Number(material.rate);
+
+            return (
+              <tr key={material.id}>
+                <td>
+                  <div className="table-primary">
+                    <strong>{material.name}</strong>
+                  </div>
+                </td>
+
+                <td>{material.category}</td>
+
+                <td>
+                  {material.quantity} {material.unit}
+                </td>
+
+                <td>{formatCurrency(material.rate)}</td>
+
+                <td>
+                  <strong>{formatCurrency(total)}</strong>
+                </td>
+
+                <td>
+                  <StatusBadge text={material.status} />
+                </td>
+
+                <td>
+                  <button
+                    className="delete-button"
+                    onClick={() => onDelete(material.id)}
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function LabourTable({ labour, onDelete }) {
+  if (!labour.length) {
+    return <EmptyState text="No labour records found." />;
+  }
+
+  return (
+    <div className="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Worker / Team</th>
+            <th>Work</th>
+            <th>Days</th>
+            <th>Daily Rate</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+
+        <tbody>
+          {labour.map((item) => (
+            <tr key={item.id}>
+              <td>
+                <strong>{item.worker}</strong>
+              </td>
+
+              <td>{item.work}</td>
+              <td>{item.days}</td>
+              <td>{formatCurrency(item.rate)}</td>
+
+              <td>
+                <strong>
+                  {formatCurrency(item.days * item.rate)}
+                </strong>
+              </td>
+
+              <td>
+                <StatusBadge text={item.status} />
+              </td>
+
+              <td>
+                <button
+                  className="delete-button"
+                  onClick={() => onDelete(item.id)}
+                >
+                  ×
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TaskRow({ task, onStatusChange }) {
+  return (
+    <div className="task-row">
+      <div className={`task-check ${task.status === "Completed" ? "done" : ""}`}>
+        {task.status === "Completed" ? "✓" : ""}
+      </div>
+
+      <div className="task-row-content">
+        <strong>{task.title}</strong>
+        <span>
+          {task.room} · Due {task.due}
+        </span>
+      </div>
+
+      <select
+        value={task.status}
+        onChange={(event) =>
+          onStatusChange(task.id, event.target.value)
+        }
+        className="mini-select"
+      >
+        <option>Pending</option>
+        <option>In Progress</option>
+        <option>Completed</option>
+      </select>
+    </div>
+  );
+}
+
+function TaskCard({ task, onDelete, onStatusChange }) {
+  return (
+    <div className="task-card">
+      <div className="task-card-top">
+        <StatusBadge text={task.priority} />
+
+        <button
+          className="delete-button"
+          onClick={() => onDelete(task.id)}
+        >
+          ×
+        </button>
+      </div>
+
+      <h3>{task.title}</h3>
+
+      <div className="task-card-meta">
+        <span>⌂ {task.room}</span>
+        <span>◷ {task.due}</span>
+      </div>
+
+      <select
+        value={task.status}
+        onChange={(event) =>
+          onStatusChange(task.id, event.target.value)
+        }
+      >
+        <option>Pending</option>
+        <option>In Progress</option>
+        <option>Completed</option>
+      </select>
+    </div>
+  );
+}
+
+function StatusBadge({ text }) {
+  const normalized = text.toLowerCase().replaceAll(" ", "-");
+
+  return (
+    <span className={`status-badge ${normalized}`}>
+      {text}
+    </span>
+  );
+}
+
+function Modal({ title, subtitle, onClose, children }) {
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h2>{title}</h2>
+            <p>{subtitle}</p>
+          </div>
+
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FormField({ label, children, full = false }) {
+  return (
+    <label className={`form-field ${full ? "full" : ""}`}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ModalActions({ onCancel, submit }) {
+  return (
+    <div className="modal-actions full">
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={onCancel}
+      >
+        Cancel
+      </button>
+
+      <button type="submit" className="primary-button">
+        {submit}
+      </button>
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return (
+    <div className="empty-state">
+      <div>◎</div>
+      <strong>{text}</strong>
+      <span>Try adding a new record.</span>
     </div>
   );
 }
